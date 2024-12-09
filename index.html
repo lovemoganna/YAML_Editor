@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>YAML 实时预览编辑工具</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- js-yaml CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+    <!-- Highlight.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    <!-- Highlight.js JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/yaml.min.js"></script>
+    <!-- Font Awesome 图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Noto Sans SC 字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- 引入外部CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="bg-gray-100 h-screen">
+    <div class="flex h-full">
+        <!-- 左侧编辑区 -->
+        <div class="w-1/2 p-4 overflow-auto bg-white border-r">
+            <h2 class="text-2xl font-bold mb-4">YAML</h2>
+            <div id="tree-container" class="space-y-2">
+                <!-- 树形结构将动态生成 -->
+            </div>
+            <button id="add-root" class="mt-4 px-4 py-2 bg-green-500 text-white rounded">
+                添加根节点
+            </button>
+        </div>
+        <!-- 右侧预览区 -->
+        <div class="w-1/2 p-4 overflow-auto bg-gray-50">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">YAML 预览区</h2>
+                <div class="space-x-2">
+                    <button id="copy-btn" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600" title="复制到剪贴板">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                    <button id="export-btn" class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600" title="导出YAML文件">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <input type="file" id="import-file" accept=".yaml,.yml" class="hidden">
+                    <button id="import-btn" class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600" title="导入YAML文件">
+                        <i class="fas fa-upload"></i>
+                    </button>
+                    <button id="clear-btn" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600" title="清除所有数据">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button id="batch-import-btn" class="px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600" title="批量导入数据">
+                        <i class="fas fa-list"></i>
+                    </button>
+                </div>
+            </div>
+            <pre id="yaml-preview" class="bg-gray-200 p-4 rounded whitespace-pre-wrap"></pre>
+        </div>
+    </div>
+
+    <!-- 模态框 -->
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded p-6 w-80">
+            <h3 class="text-xl font-bold mb-4" id="modal-title">编辑节点</h3>
+            <input type="text" id="node-key" class="w-full border px-3 py-2 mb-4 rounded" placeholder="键名" />
+            <input type="text" id="node-value" class="w-full border px-3 py-2 mb-4 rounded" placeholder="值" />
+            <div class="mb-4">
+                <label class="flex items-center">
+                    <input type="checkbox" id="is-object" class="mr-2" />
+                    <span>值为对象</span>
+                </label>
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button id="cancel-btn" class="px-4 py-2 bg-gray-300 rounded">
+                    取消
+                </button>
+                <button id="save-btn" class="px-4 py-2 bg-blue-500 text-white rounded">
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量导入模态框 -->
+    <div id="batch-import-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded p-6 w-[800px]">
+            <h3 class="text-xl font-bold mb-4">批量导入数据</h3>
+            <div class="mb-4">
+                <p class="text-sm text-gray-600 mb-2">支持直接粘贴 YAML 格式数据</p>
+                <textarea class="w-full h-64 border px-3 py-2 rounded font-mono" placeholder="示例：
+物理性质〔可泛化〕:
+  测量属性:
+    测量尺寸:
+      长短宽高: [" 长, 短, 宽, 窄, 高, 矮"] 体积: ["大, 小, 微"]"></textarea>
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button class="cancel-btn px-4 py-2 bg-gray-300 rounded">取消</button>
+                <button class="import-btn px-4 py-2 bg-blue-500 text-white rounded">导入</button>
+            </div>
+        </div>
+    </div>
+</body>
+<script src="T1.js"></script>
+</html>
