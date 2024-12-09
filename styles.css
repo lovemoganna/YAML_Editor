@@ -1,0 +1,97 @@
+/* 基础样式优化 */
+body {
+    font-family: 'Noto Sans SC', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* 自定义滚动条样式 */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+
+/* YAML预览区域样式优化 */
+#yaml-preview {
+    font-family: 'Victor Mono', 'Noto Sans SC', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    tab-size: 2;
+}
+
+/* 模态框动画 */
+.modal-enter {
+    opacity: 0;
+    transform: scale(0.9);
+}
+
+.modal-enter-active {
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 200ms, transform 200ms;
+}
+
+.modal-exit {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.modal-exit-active {
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 200ms, transform 200ms;
+}
+
+/* 按钮悬停效果增强 */
+.hover-scale {
+    transition: transform 0.15s ease;
+}
+
+.hover-scale:hover {
+    transform: scale(1.05);
+}
+
+/* 树形节点交互优化 */
+.tree-node {
+    transition: background-color 0.2s ease;
+}
+
+.tree-node:hover {
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
+/* 输入框焦点效果 */
+input:focus,
+textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+/* 折叠/展开图标动画 */
+.toggle-icon {
+    transition: transform 0.2s ease;
+}
+
+/* 操作按钮组过渡效果 */
+.action-group {
+    transition: opacity 0.2s ease;
+}
+
+/* 模态框背景模糊效果 */
+.modal-backdrop {
+    backdrop-filter: blur(4px);
+}
