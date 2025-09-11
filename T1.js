@@ -1,53 +1,14 @@
-// 用于保存和恢复编辑状态的函数
-function saveToLocalStorage(data) {
-    try {
-        localStorage.setItem('yamlEditorData', JSON.stringify(data));
-    } catch (e) {
-        console.error('保存到本地存储失败:', e);
-    }
-}
+// 本地存储键（统一使用 JSON 存储）
+const LOCAL_STORAGE_KEY = "yamlEditorState";
 
-function loadFromLocalStorage() {
-    try {
-        const savedData = localStorage.getItem('yamlEditorData');
-        return savedData ? JSON.parse(savedData) : null;
-    } catch (e) {
-        console.error('从本地存储加载失败:', e);
-        return null;
-    }
-}
-
-// 在页面加载时恢复数据
-document.addEventListener('DOMContentLoaded', () => {
-    const savedData = loadFromLocalStorage();
-    if (savedData) {
-        // 恢复保存的数据到编辑器
-        renderTree(savedData);
-        updateYamlPreview();
-    }
-});
-
-// 在数据更新时保存
-function updateYamlPreview() {
-    const yamlData = generateYamlFromTree();
-    const yamlText = jsyaml.dump(yamlData);
-    document.getElementById('yaml-preview').textContent = yamlText;
-    hljs.highlightElement(document.getElementById('yaml-preview'));
-    
-    // 保存到本地存储
-    saveToLocalStorage(yamlData);
-}
-
-// 初始YAML数据
+// 初始数据
 let data = {};
 
-// 从localStorage读取数据
+// 从本地存储读取 JSON 状态
 try {
-  const savedData = localStorage.getItem("yamlEditorData");
-  if (savedData) {
-    // 移除 YAML 文档分隔符后再解析
-    const cleanContent = savedData.replace(/^---\n/, "").replace(/\n---$/, "");
-    data = jsyaml.load(cleanContent) || {};
+  const savedJson = localStorage.getItem(LOCAL_STORAGE_KEY);
+  if (savedJson) {
+    data = JSON.parse(savedJson) || {};
   }
 } catch (err) {
   console.error("读取本地存储失败:", err);
@@ -69,12 +30,16 @@ let currentPath = [];
 let isEditing = false;
 let selectedNodePosition = null;
 
-// 渲染树形结构
+// 搜索查询（用于过滤与高亮）
+let searchQuery = "";
+
+// 渲染树形结构（根据搜索过滤显示）
 function renderTree(container, obj, path = []) {
   container.innerHTML = "";
   const ul = document.createElement("ul");
-  ul.className = "pl-4"; // 添加左边距
-  buildTree(ul, obj, path);
+  ul.className = "pl-4";
+  const filtered = filterDataByQuery(obj, searchQuery);
+  buildTree(ul, filtered, path);
   container.appendChild(ul);
 }
 
@@ -131,13 +96,21 @@ function buildTree(ul, obj, path = []) {
 
     // 如果是键值对，显示
     if (value !== null && typeof value !== "object") {
-      nodeText.innerHTML = `<span class="text-gray-700">${key}</span><span class="mx-2 text-gray-400">:</span><span class="text-blue-600">${value}</span>`;
+      nodeText.innerHTML = `<span class="text-gray-700">${highlightMatch(
+        key
+      )}</span><span class="mx-2 text-gray-400">:</span><span class="text-blue-600">${highlightMatch(
+        String(value)
+      )}</span>`;
     } else if (Array.isArray(value)) {
-      nodeText.innerHTML = `<span class="text-gray-700">${key}</span><span class="mx-2 text-gray-400">:</span><span class="text-purple-600">[${value.join(
-        ", "
+      nodeText.innerHTML = `<span class="text-gray-700">${highlightMatch(
+        key
+      )}</span><span class="mx-2 text-gray-400">:</span><span class="text-purple-600">[${highlightMatch(
+        value.join(", ")
       )}]</span>`;
     } else {
-      nodeText.innerHTML = `<span class="text-gray-700">${key}</span>`;
+      nodeText.innerHTML = `<span class="text-gray-700">${highlightMatch(
+        key
+      )}</span>`;
     }
 
     // 添加操作按钮组
@@ -164,6 +137,18 @@ function buildTree(ul, obj, path = []) {
     deleteBtn.innerHTML = '<i class="fas fa-trash-can"></i>';
     deleteBtn.title = "删除节点 (Alt+D)";
 
+    // 上移按钮
+    const upBtn = document.createElement("button");
+    upBtn.className = "w-6 h-6 rounded-full hover:bg-gray-100 text-gray-600";
+    upBtn.innerHTML = '<i class="fas fa-arrow-up"></i>';
+    upBtn.title = "上移";
+
+    // 下移按钮
+    const downBtn = document.createElement("button");
+    downBtn.className = "w-6 h-6 rounded-full hover:bg-gray-100 text-gray-600";
+    downBtn.innerHTML = '<i class="fas fa-arrow-down"></i>';
+    downBtn.title = "下移";
+
     // 组装节点
     nodeDiv.appendChild(toggleBtn);
     nodeDiv.appendChild(nodeIcon);
@@ -171,6 +156,8 @@ function buildTree(ul, obj, path = []) {
     actionGroup.appendChild(addBtn);
     actionGroup.appendChild(editBtn);
     actionGroup.appendChild(deleteBtn);
+    actionGroup.appendChild(upBtn);
+    actionGroup.appendChild(downBtn);
     nodeDiv.appendChild(actionGroup);
     li.appendChild(nodeDiv);
 
@@ -211,6 +198,14 @@ function buildTree(ul, obj, path = []) {
         renderTree(treeContainer, data);
         updatePreview();
       }
+    });
+
+    // 重新排序事件
+    upBtn.addEventListener("click", () => {
+      reorderSibling([...path], key, -1);
+    });
+    downBtn.addEventListener("click", () => {
+      reorderSibling([...path], key, 1);
     });
 
     ul.appendChild(li);
@@ -321,7 +316,12 @@ function updatePreview() {
       language: "yaml",
     }).value;
 
-    localStorage.setItem("yamlEditorData", formattedYaml);
+    // 保存 JSON 状态
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+      console.error("保存本地存储失败:", e);
+    }
   } catch (err) {
     console.error("更新预览失败:", err);
   }
@@ -500,7 +500,7 @@ importFile.addEventListener("change", (event) => {
 document.getElementById("clear-btn").addEventListener("click", () => {
   if (confirm("确定要清除所有数据吗？此操作不可恢复。")) {
     data = {};
-    localStorage.removeItem("yamlEditorData");
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
     renderTree(treeContainer, data);
     updatePreview();
   }
@@ -587,3 +587,115 @@ function processArrays(obj) {
   });
   return obj;
 }
+
+// 工具：根据搜索词过滤数据（不修改原始数据）
+function filterDataByQuery(obj, query) {
+  if (!query || !query.trim()) return obj;
+  const q = query.trim().toLowerCase();
+
+  function recurse(value) {
+    if (Array.isArray(value)) {
+      const joined = value.join(", ");
+      return joined.toLowerCase().includes(q) ? value : null;
+    }
+    if (value !== null && typeof value === "object") {
+      const result = {};
+      for (const [k, v] of Object.entries(value)) {
+        const keyMatches = String(k).toLowerCase().includes(q);
+        if (v !== null && typeof v === "object") {
+          const child = recurse(v);
+          if (keyMatches || child !== null) {
+            result[k] = child === null ? v : child;
+          }
+        } else {
+          const valStr = Array.isArray(v) ? v.join(", ") : String(v);
+          if (keyMatches || valStr.toLowerCase().includes(q)) {
+            result[k] = v;
+          }
+        }
+      }
+      return Object.keys(result).length ? result : null;
+    }
+    const scalarStr = String(value);
+    return scalarStr.toLowerCase().includes(q) ? value : null;
+  }
+
+  const filtered = recurse(obj);
+  return filtered || {};
+}
+
+// 工具：高亮匹配文本
+function highlightMatch(text) {
+  if (!searchQuery || !searchQuery.trim()) return escapeHtml(text);
+  const q = searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(q, "gi");
+  return escapeHtml(text).replace(re, (m) => `<span class="bg-yellow-200">${m}</span>`);
+}
+
+// 工具：HTML 转义
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// 同级节点重排
+function reorderSibling(parentPath, key, delta) {
+  const parent = getNodeByPath(data, parentPath);
+  if (!parent || typeof parent !== "object" || Array.isArray(parent)) return;
+  const keys = Object.keys(parent);
+  const idx = keys.indexOf(key);
+  if (idx < 0) return;
+  const newIdx = Math.max(0, Math.min(keys.length - 1, idx + delta));
+  if (newIdx === idx) return;
+  keys.splice(idx, 1);
+  keys.splice(newIdx, 0, key);
+  const snapshot = { ...parent };
+  Object.keys(parent).forEach((k) => delete parent[k]);
+  keys.forEach((k) => {
+    parent[k] = snapshot[k];
+  });
+  renderTree(treeContainer, data);
+  updatePreview();
+}
+
+// 搜索框交互
+const searchInputEl = document.getElementById("search-input");
+const clearSearchBtn = document.getElementById("clear-search");
+if (searchInputEl) {
+  searchInputEl.addEventListener("input", (e) => {
+    searchQuery = e.target.value || "";
+    renderTree(treeContainer, data);
+  });
+}
+if (clearSearchBtn) {
+  clearSearchBtn.addEventListener("click", () => {
+    searchQuery = "";
+    if (searchInputEl) searchInputEl.value = "";
+    renderTree(treeContainer, data);
+  });
+}
+
+// 展开/折叠全部
+const expandAllBtn = document.getElementById("expand-all");
+const collapseAllBtn = document.getElementById("collapse-all");
+
+function setAllExpansion(expand) {
+  // 针对所有有子节点的切换按钮
+  document.querySelectorAll('#tree-container button[data-expanded]').forEach((btn) => {
+    const childContainer = btn.parentElement && btn.parentElement.nextSibling;
+    if (!childContainer) return;
+    btn.setAttribute("data-expanded", expand ? "true" : "false");
+    childContainer.style.display = expand ? "block" : "none";
+    const icon = btn.querySelector("i");
+    if (icon) {
+      icon.style.transform = expand ? "rotate(90deg)" : "rotate(0)";
+    }
+  });
+}
+
+if (expandAllBtn) expandAllBtn.addEventListener("click", () => setAllExpansion(true));
+if (collapseAllBtn) collapseAllBtn.addEventListener("click", () => setAllExpansion(false));
