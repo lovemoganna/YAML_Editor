@@ -52,6 +52,12 @@
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold">YAML 预览区</h2>
                 <div class="space-x-2">
+                    <button id="undo-btn" class="px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300" title="撤销 (Ctrl+Z)">
+                        <i class="fas fa-rotate-left"></i>
+                    </button>
+                    <button id="redo-btn" class="px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300" title="重做 (Ctrl+Shift+Z)">
+                        <i class="fas fa-rotate-right"></i>
+                    </button>
                     <button id="copy-btn" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
                         title="复制到剪贴板">
                         <i class="fas fa-copy"></i>

@@ -25,6 +25,8 @@ const isObjectCheckbox = document.getElementById("is-object");
 const saveBtn = document.getElementById("save-btn");
 const cancelBtn = document.getElementById("cancel-btn");
 const addRootBtn = document.getElementById("add-root");
+const undoBtn = document.getElementById("undo-btn");
+const redoBtn = document.getElementById("redo-btn");
 
 let currentPath = [];
 let isEditing = false;
@@ -32,6 +34,60 @@ let selectedNodePosition = null;
 
 // 搜索查询（用于过滤与高亮）
 let searchQuery = "";
+
+// 撤销/重做历史栈
+const HISTORY_LIMIT = 100;
+let historyPast = [];
+let historyFuture = [];
+
+function snapshotData() {
+  if (typeof structuredClone === "function") {
+    return structuredClone(data);
+  }
+  return JSON.parse(JSON.stringify(data));
+}
+
+function updateUndoRedoButtons() {
+  if (undoBtn) undoBtn.disabled = historyPast.length === 0;
+  if (redoBtn) redoBtn.disabled = historyFuture.length === 0;
+}
+
+function pushHistory() {
+  historyPast.push(snapshotData());
+  if (historyPast.length > HISTORY_LIMIT) historyPast.shift();
+  historyFuture = [];
+  updateUndoRedoButtons();
+}
+
+function applySnapshot(snap) {
+  data = snap || {};
+  renderTree(treeContainer, data);
+  updatePreview();
+}
+
+function canUndo() {
+  return historyPast.length > 0;
+}
+
+function canRedo() {
+  return historyFuture.length > 0;
+}
+
+function undo() {
+  if (!canUndo()) return;
+  historyFuture.push(snapshotData());
+  const prev = historyPast.pop();
+  applySnapshot(prev);
+  updateUndoRedoButtons();
+}
+
+function redo() {
+  if (!canRedo()) return;
+  historyPast.push(snapshotData());
+  const next = historyFuture.pop();
+  applySnapshot(next);
+  updateUndoRedoButtons();
+}
 
 // 渲染树形结构（根据搜索过滤显示）
 function renderTree(container, obj, path = []) {
@@ -194,6 +250,7 @@ function buildTree(ul, obj, path = []) {
     );
     deleteBtn.addEventListener("click", () => {
       if (confirm("确定要删除此节点吗？")) {
+        pushHistory();
         deleteNode([...path, key]);
         renderTree(treeContainer, data);
         updatePreview();
@@ -376,6 +433,9 @@ saveBtn.addEventListener("click", () => {
     return;
   }
 
+  // 记录历史
+  pushHistory();
+
   // 删除原有键值对（如果是编辑模式）
   if (isEditing && currentKey !== key) {
     delete parent[currentKey];
@@ -426,6 +486,7 @@ isObjectCheckbox.addEventListener("change", (e) => {
 // 初始渲染
 renderTree(treeContainer, data);
 updatePreview();
+updateUndoRedoButtons();
 
 // 添加复制功能
 const copyBtn = document.getElementById("copy-btn");
@@ -484,6 +545,7 @@ importFile.addEventListener("change", (event) => {
         const parsedData = jsyaml.load(cleanContent);
 
         // 处理解析后的数据
+        pushHistory();
         data = processArrays(parsedData) || {};
         renderTree(treeContainer, data);
         updatePreview();
@@ -499,6 +561,7 @@ importFile.addEventListener("change", (event) => {
 // 添加清除按钮功能
 document.getElementById("clear-btn").addEventListener("click", () => {
   if (confirm("确定要清除所有数据吗？此操作不可恢复。")) {
+    pushHistory();
     data = {};
     localStorage.removeItem(LOCAL_STORAGE_KEY);
     renderTree(treeContainer, data);
@@ -552,6 +615,7 @@ batchImportModal.querySelector(".import-btn").addEventListener("click", () => {
     const parsedData = jsyaml.load(cleanContent);
 
     // 处理解析后的数据
+    pushHistory();
     data = processArrays(parsedData) || {};
     renderTree(treeContainer, data);
     updatePreview();
@@ -651,6 +715,7 @@ function reorderSibling(parentPath, key, delta) {
   if (idx < 0) return;
   const newIdx = Math.max(0, Math.min(keys.length - 1, idx + delta));
   if (newIdx === idx) return;
+  pushHistory();
   keys.splice(idx, 1);
   keys.splice(newIdx, 0, key);
   const snapshot = { ...parent };
@@ -699,3 +764,19 @@ function setAllExpansion(expand) {
 
 if (expandAllBtn) expandAllBtn.addEventListener("click", () => setAllExpansion(true));
 if (collapseAllBtn) collapseAllBtn.addEventListener("click", () => setAllExpansion(false));
+
+// 撤销/重做按钮
+if (undoBtn) undoBtn.addEventListener("click", () => undo());
+if (redoBtn) redoBtn.addEventListener("click", () => redo());
+
+// 撤销/重做快捷键
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+    e.preventDefault();
+    if (e.shiftKey) {
+      redo();
+    } else {
+      undo();
+    }
+  }
+});
